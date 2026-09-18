@@ -39,7 +39,7 @@ Port of the OpenCoder Sublime Text plugin (`~/.config/sublime-text/Packages/Open
 vim-plug:
 
 ```vim
-Plug '~/Projects/marginalia.nvim'
+Plug 'gaxeliy/marginalia.nvim'
 lua require('marginalia').setup {}
 ```
 
@@ -47,9 +47,16 @@ lazy.nvim:
 
 ```lua
 {
-  dir = '~/Projects/marginalia.nvim',
+  'gaxeliy/marginalia.nvim',
   opts = {},
 }
+```
+
+nvim's built-in `vim.pack` (kickstart-style):
+
+```lua
+vim.pack.add { 'https://github.com/gaxeliy/marginalia.nvim' }
+require('marginalia').setup {}
 ```
 
 ## Default keymaps
