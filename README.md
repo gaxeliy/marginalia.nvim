@@ -4,8 +4,6 @@ Margin notes for code review in Neovim: leave comments anchored to code lines,
 navigate between them, and export everything to the system clipboard as
 ready-to-paste LLM context.
 
-Port of the OpenCoder Sublime Text plugin (`~/.config/sublime-text/Packages/OpenCoder/`).
-
 ## Features
 
 - Comments are extmarks: `virt_lines` below the target line (the review-tool
