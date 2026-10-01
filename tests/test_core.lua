@@ -250,6 +250,21 @@ assert(range_c ~= nil, 'range comment collected')
 assert(range_c.line == 3 and range_c.end_line == 5,
   ('range must be L3-L5, got L%d-L%d'):format(range_c.line, range_c.end_line))
 
+-- 2c.1 visual add returns to normal mode: the range is captured and visual
+-- mode is left BEFORE the prompt (vim.ui.input restores the invoking mode,
+-- so exiting only after the callback would be undone).
+vim.ui.input = function(opts, cb) cb('visual exit note') end
+vim.cmd('normal! 1GV1j')
+assert(vim.fn.mode() == 'V', '2c.1: precondition — visual line mode active')
+mg.add_comment()
+assert(vim.fn.mode() == 'n', '2c.1: normal mode after a visual add, got ' .. vim.fn.mode())
+local visual_marks = vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {})
+assert(#visual_marks == 4, '2c.1: note added from the visual range, got ' .. #visual_marks)
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+mg.clear_current_comment()
+assert(#vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {}) == 3,
+  '2c.1: cleanup leaves the three phase-2 notes')
+
 -- 2d. export text: entries + multiline joined, no code/context
 vim.fn.setreg('+', '') -- the OS clipboard is shared across runs: start clean
 mg.export_to_clipboard()

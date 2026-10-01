@@ -510,6 +510,10 @@ function M.add_comment()
     line = vim.fn.getpos 'v'[2]
     if line == 0 then line = vim.fn.line '.' end -- paranoia: unset `v` mark
     end_line = vim.fn.line '.'
+    -- The range is captured: leave visual mode before prompting so the editor
+    -- is back in normal mode after the note. vim.ui.input restores the mode it
+    -- was invoked from, so exiting after the callback would be undone.
+    vim.cmd.normal({ args = { '\27' }, bang = true })
   else
     line, end_line = vim.fn.line '.', vim.fn.line '.'
   end
