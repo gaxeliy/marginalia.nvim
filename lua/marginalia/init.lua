@@ -55,6 +55,7 @@ local defaults = {
 }
 
 local cfg = vim.deepcopy(defaults)
+local did_setup = false
 
 -- namespace is created in setup(); every extmark lives in it.
 local ns = nil
@@ -152,6 +153,12 @@ end
 --- Flush the store to disk synchronously (bypasses the debounce).
 function M.flush_store()
   write_store()
+end
+
+--- Internal: the active config once setup() has run (nil before that).
+--- Used by the health check; not part of the public API.
+function M._config()
+  return did_setup and cfg or nil
 end
 
 -- Store file format: {"version": 1, "files": {...}}. Anything else
@@ -977,6 +984,22 @@ function M.next_comment() jump_adjacent(1) end
 
 function M.prev_comment() jump_adjacent(-1) end
 
+-- Shared quickfix fallback: used when Telescope is missing OR fails to
+-- start (e.g. a telescope.nvim version that does not support this Neovim).
+local function open_quickfix(comments)
+  local qf = {}
+  for _, c in ipairs(comments) do
+    qf[#qf + 1] = {
+      filename = c.abspath,
+      lnum = c.line,
+      text = (c.text:gsub('[\r\n]+', ' ')),
+    }
+  end
+  vim.fn.setqflist(qf, 'r')
+  vim.fn.setqflist({}, 'a', { title = 'Marginalia: review comments' })
+  vim.cmd 'copen'
+end
+
 --- Telescope picker over all comments (falls back to the quickfix list).
 --- Bindings inside the picker: <CR> jump, d/<C-d> delete, e/<C-e> edit.
 function M.pick_comments()
@@ -990,17 +1013,7 @@ function M.pick_comments()
   if not ok_telescope then
     vim.notify('marginalia: telescope.nvim not found — opened the quickfix list instead',
       vim.log.levels.WARN)
-    local qf = {}
-    for _, c in ipairs(comments) do
-      qf[#qf + 1] = {
-        filename = c.abspath,
-        lnum = c.line,
-        text = (c.text:gsub('[\r\n]+', ' ')),
-      }
-    end
-    vim.fn.setqflist(qf, 'r')
-    vim.fn.setqflist({}, 'a', { title = 'Marginalia: review comments' })
-    vim.cmd 'copen'
+    open_quickfix(comments)
     return
   end
 
@@ -1025,33 +1038,40 @@ function M.pick_comments()
     end
   end
 
-  pickers.new(vim.tbl_deep_extend('force', {
-    prompt_title = 'Marginalia: Review Comments',
-    finder = finders.new_table {
-      results = comments,
-      entry_maker = function(c)
-        local label = ('%s:%s %s'):format(c.relpath, range_label(c),
-          (c.text:gsub('[\r\n]+', ' ')))
-        return {
-          value = c,
-          display = label,
-          ordinal = label,
-          filename = c.abspath,
-          lnum = c.line,
-        }
+  local ok_pick, err = pcall(function()
+    pickers.new(vim.tbl_deep_extend('force', {
+      prompt_title = 'Marginalia: Review Comments',
+      finder = finders.new_table {
+        results = comments,
+        entry_maker = function(c)
+          local label = ('%s:%s %s'):format(c.relpath, range_label(c),
+            (c.text:gsub('[\r\n]+', ' ')))
+          return {
+            value = c,
+            display = label,
+            ordinal = label,
+            filename = c.abspath,
+            lnum = c.line,
+          }
+        end,
+      },
+      sorter = conf.generic_sorter {},
+      previewer = conf.grep_previewer {},
+      attach_mappings = function(prompt_bufnr, map)
+        actions.select_default:replace(act('jump'))
+        map('n', 'd', act('delete'))
+        map('n', 'e', act('edit'))
+        map('i', '<C-d>', act('delete'))
+        map('i', '<C-e>', act('edit'))
+        return true
       end,
-    },
-    sorter = conf.generic_sorter {},
-    previewer = conf.grep_previewer {},
-    attach_mappings = function(prompt_bufnr, map)
-      actions.select_default:replace(act('jump'))
-      map('n', 'd', act('delete'))
-      map('n', 'e', act('edit'))
-      map('i', '<C-d>', act('delete'))
-      map('i', '<C-e>', act('edit'))
-      return true
-    end,
-  }, cfg.telescope or {})):find()
+    }, cfg.telescope or {})):find()
+  end)
+  if not ok_pick then
+    vim.notify('marginalia: telescope failed to start (' .. tostring(err)
+      .. ') — opened the quickfix list instead', vim.log.levels.WARN)
+    open_quickfix(comments)
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1257,6 +1277,7 @@ end
 --- Configure the plugin.
 ---   require('marginalia').setup { include_code = true }
 function M.setup(user_opts)
+  did_setup = true
   cfg = vim.tbl_deep_extend('force', vim.deepcopy(defaults), user_opts or {})
   if type(cfg.keymaps) ~= 'table' then
     cfg.keymaps = {} -- keymaps = false => no mappings at all

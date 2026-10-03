@@ -1,0 +1,12 @@
+{
+  "name": "marginalia.nvim",
+  "description": "Margin notes for code review in Neovim: comments anchored to code lines, exported as ready-to-paste LLM context.",
+  "license": "MIT",
+  "engines": {
+    "nvim": ">=0.10.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaxeliy/marginalia.nvim"
+  }
+}

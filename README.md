@@ -52,12 +52,18 @@ lazy.nvim:
 }
 ```
 
-nvim's built-in `vim.pack` (kickstart-style):
+nvim's built-in `vim.pack` (Neovim 0.12+):
 
 ```lua
-vim.pack.add { 'https://github.com/gaxeliy/marginalia.nvim' }
+vim.pack.add {
+  -- pin to the 0.1.x release line (semver tags)
+  { src = 'https://github.com/gaxeliy/marginalia.nvim', version = vim.version.range('0.1') },
+}
 require('marginalia').setup {}
 ```
+
+Run `:checkhealth marginalia` to verify the environment (clipboard provider,
+store writability, optional integrations).
 
 ## Default keymaps
 
@@ -183,7 +189,9 @@ lua/marginalia/init.lua:88 namespace is created twice here
 
 ```bash
 tests/run.sh        # PASS / SKIP / FAIL per suite, exit code 1 on failure
-tests/mutate.sh     # mutation testing: 20 targeted mutations must all be killed
+tests/matrix.sh     # the suite on pinned Neovim versions (portable builds,
+                    # cached in ~/.cache — the system nvim is untouched)
+tests/mutate.sh     # mutation testing: 29 targeted mutations must all be killed
 ```
 
 `core` and `fuzz` always run headlessly (plugin only). `telescope` and
@@ -193,10 +201,15 @@ breaking change at a time to the module and expects the core suite to fail —
 a surviving mutation marks a behavior no test pins. Every module fix lands
 together with the test that pins it.
 
+CI runs `tests/run.sh` on a Neovim matrix (v0.10.4, v0.11.7, v0.12.5,
+stable; nightly is allowed to fail) and `tests/mutate.sh` on stable.
+
 ## Requirements
 
 - Neovim >= 0.10
-- Telescope (optional; quickfix fallback otherwise)
+- Telescope (optional). The quickfix fallback is used when telescope is
+  missing or fails to start. Telescope's own Neovim requirement applies —
+  e.g. telescope.nvim as of 2026 needs Neovim >= 0.11.7
 - A clipboard provider for `+` (X11/Wayland: `xclip`/`wl-copy`; see `:checkhealth provider`)
 
 ## License

@@ -745,6 +745,36 @@ for _, item in ipairs(qf_items) do
 end
 assert(qf_demo2 ~= nil, 'quickfix item points at demo2.lua:4')
 
+-- 5c.1 telescope loads but its picker crashes (e.g. telescope.nvim requires
+-- a newer Neovim than the one running): pick_comments must warn and fall
+-- back to the quickfix list instead of propagating the error.
+local telescope_modules = { 'telescope.pickers', 'telescope.finders',
+  'telescope.actions', 'telescope.actions.state', 'telescope.config' }
+local saved_modules = {}
+for _, mod in ipairs(telescope_modules) do
+  saved_modules[mod] = package.loaded[mod]
+end
+package.loaded['telescope.pickers'] = {
+  new = function() return { find = function() error('telescope exploded') end } end,
+}
+package.loaded['telescope.finders'] = { new_table = function() return {} end }
+package.loaded['telescope.actions'] = { close = function() end }
+package.loaded['telescope.actions.state'] = { get_selected_entry = function() end }
+package.loaded['telescope.config'] = { values = {
+  generic_sorter = function() return {} end,
+  grep_previewer = function() return {} end,
+} }
+vim.fn.setqflist({}, 'r')
+reset_warnings()
+mg.pick_comments()
+assert(reset_warnings() == 1, 'broken telescope must warn')
+assert(vim.fn.getqflist({ title = 0 }).title == 'Marginalia: review comments',
+  'broken telescope falls back to the titled quickfix')
+vim.cmd('cclose')
+for _, mod in ipairs(telescope_modules) do
+  package.loaded[mod] = saved_modules[mod]
+end
+
 -- 5d. hidden state survives a buffer reload (hide -> setup restore)
 vim.cmd('cclose') -- the quickfix from 5c is the active window; leave it
 vim.cmd('edit ' .. vim.fn.fnameescape(path2)) -- current buffer = demo2
@@ -1446,6 +1476,42 @@ vim.cmd('bdelete! ' .. b14)
 vim.cmd('bdelete! ' .. b14f)
 vim.fn.delete(PROJ, 'rf')
 vim.fn.delete(FOREIGN14)
+
+-- ===========================================================================
+-- PHASE 15: :checkhealth marginalia — the health module loads, reports the
+-- environment and never throws. vim.health is stubbed: the suite pins the
+-- MESSAGES, not Neovim's rendering.
+-- ===========================================================================
+local health_mod = require('marginalia.health')
+local saved_health = vim.health
+local health_log = {}
+local function record(kind)
+  return function(msg) health_log[#health_log + 1] = { kind, msg } end
+end
+vim.health = {
+  start = record('start'), ok = record('ok'), warn = record('warn'),
+  error = record('error'), info = record('info'),
+}
+local ok15, err15 = pcall(health_mod.check)
+vim.health = saved_health
+assert(ok15, '15: health.check() must not throw: ' .. tostring(err15))
+assert(health_log[1] and health_log[1][1] == 'start'
+    and health_log[1][2] == 'marginalia',
+  '15: the check starts the marginalia report')
+local function health_has(kind, needle)
+  for _, e in ipairs(health_log) do
+    if e[1] == kind and e[2]:find(needle, 1, true) then return true end
+  end
+  return false
+end
+local errors15 = 0
+for _, e in ipairs(health_log) do
+  if e[1] == 'error' then errors15 = errors15 + 1 end
+end
+assert(errors15 == 0, '15: healthy environment must report no errors')
+assert(health_has('ok', 'Neovim >= 0.10'), '15: version check reports ok on this Nvim')
+assert(health_has('ok', 'setup() called'), '15: setup() state is reported')
+assert(health_has('ok', 'store:'), '15: persistence store path is reported')
 
 print('CORE TESTS PASSED')
 vim.cmd('qa!')
