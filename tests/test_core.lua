@@ -20,6 +20,24 @@ vim.notify = function(msg, lvl)
   print(('[NOTIFY %s] %s'):format(tostring(lvl), msg))
 end
 
+-- Hermetic clipboard: CI runners have no clipboard provider, so writes to
+-- "+" would be silently dropped and every export assertion would fail.
+-- A Lua-function g:clipboard round-trips exactly on every machine.
+-- Phase 11 overrides it to exercise provider detection and restores a
+-- fresh instance afterwards.
+local function fake_clipboard()
+  local store = {}
+  local function copy(lines) store = lines end
+  local function paste() return { store, 'v' } end
+  return {
+    name = 'marginalia-test-clipboard',
+    copy = { ['+'] = copy, ['*'] = copy },
+    paste = { ['+'] = paste, ['*'] = paste },
+    cache_enabled = false,
+  }
+end
+vim.g.clipboard = fake_clipboard()
+
 local plugin_dir = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(plugin_dir)
 local DATA = '/tmp/opencode/mg_data'
@@ -1058,7 +1076,7 @@ assert(reset_warnings() == 1, 'missing provider must warn')
 assert(vim.fn.getreg('"'):find('demo.lua:2', 1, true),
   'without a provider the text lands in the unnamed register as a fallback')
 vim.fn['provider#clipboard#Executable'] = real_exec
-vim.g.clipboard = nil
+vim.g.clipboard = fake_clipboard()
 
 -- ===========================================================================
 -- PHASE 12: review buffer — all notes in one editable scratch buffer.
