@@ -15,7 +15,7 @@
 -- Requires Neovim >= 0.10. Telescope is optional (quickfix fallback).
 --
 -- Usage:
---   Plug '~/Projects/marginalia.nvim'
+--   Plug 'gaxeliy/marginalia.nvim'
 --   lua require('marginalia').setup {}
 
 local M = {}
@@ -102,7 +102,7 @@ local function write_store()
     return
   end
   -- Atomic-ish write: tmp file + rename, so a crash mid-write cannot
-  -- corrupt the store (mirrors the Python OpenCoder's tmp/os.replace).
+  -- corrupt the store (the standard tmp + os.rename pattern).
   -- The previous content is COPIED to .bak first: the live store file is
   -- never momentarily absent, and a directory-shaped json_path is never
   -- renamed (renaming it would destroy the user's directory).

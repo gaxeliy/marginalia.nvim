@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 fail=0
 for suite in core fuzz telescope diffview; do
   out="$(timeout 120 nvim --headless -u NONE -n -c "luafile tests/test_${suite}.lua" 2>&1 || true)"
-  clean="$(printf '%s' "$out" | sed 's/-- ВСТАВКА --//g')"
+  clean="$out"
   suite_up="$(printf '%s' "$suite" | tr '[:lower:]' '[:upper:]')"
   if printf '%s' "$clean" | grep -q "${suite_up} TESTS PASSED"; then
     echo "PASS  $suite"

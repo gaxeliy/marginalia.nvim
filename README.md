@@ -4,6 +4,8 @@ Margin notes for code review in Neovim: leave comments anchored to code lines,
 navigate between them, and export everything to the system clipboard as
 ready-to-paste LLM context.
 
+![marginalia.nvim demo](docs/demo.gif)
+
 ## Features
 
 - Comments are extmarks: `virt_lines` below the target line (the review-tool
@@ -59,22 +61,22 @@ require('marginalia').setup {}
 
 ## Default keymaps
 
-| Keys         | Action                                                     |
-|--------------|------------------------------------------------------------|
-| `<leader>Ra` | add note (normal = current line, visual = range)           |
-| `<leader>Re` | edit note on the current line                              |
-| `<leader>Rc` | clear note on the current line                             |
-| `<leader>RC` | clear ALL notes in the current project                          |
-| `<leader>Rx` | export all notes to the clipboard                              |
-| `<leader>Rp` | pick notes (Telescope / quickfix)                          |
-| `<leader>Rb` | review buffer: all notes in one editable place             |
-| `<leader>Rt` | toggle note visibility in the current buffer               |
-| `<leader>Rv` | floating preview of the note on the current line           |
-| `]R` / `[R`  | next / previous (visible) note in the buffer               |
+| Keys         | Action                                           |
+|--------------|--------------------------------------------------|
+| `<leader>Ra` | add note (normal = current line, visual = range) |
+| `<leader>Re` | edit note on the current line                    |
+| `<leader>Rc` | clear note on the current line                   |
+| `<leader>RC` | clear ALL notes in the current project           |
+| `<leader>Rx` | export all notes to the clipboard                |
+| `<leader>Rp` | pick notes (Telescope / quickfix)                |
+| `<leader>Rb` | review buffer: all notes in one editable place   |
+| `<leader>Rt` | toggle note visibility in the current buffer     |
+| `<leader>Rv` | floating preview of the note on the current line |
+| `]R` / `[R`  | next / previous (visible) note in the buffer     |
 
-`<leader>R` and `[R` were chosen because `<leader>g*`, `<leader>h*` (gitsigns),
-`<leader>q*`, `<leader>s*`, `<leader>t*`, `<leader>u*` and `]c`/`[c` are already
-taken in your config. Every mapping can be disabled by setting it to `false`.
+`<leader>R` and `[R` leave common `<leader>g*`, `<leader>h*` (gitsigns),
+`<leader>q*`, `<leader>s*`, `<leader>t*`, `<leader>u*` prefixes and `]c`/`[c`
+free. Every mapping can be disabled by setting it to `false`.
 
 ## Setup options
 
@@ -196,3 +198,7 @@ together with the test that pins it.
 - Neovim >= 0.10
 - Telescope (optional; quickfix fallback otherwise)
 - A clipboard provider for `+` (X11/Wayland: `xclip`/`wl-copy`; see `:checkhealth provider`)
+
+## License
+
+[MIT](LICENSE)
