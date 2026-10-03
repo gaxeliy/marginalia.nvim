@@ -63,7 +63,7 @@ require('marginalia').setup {}
 ```
 
 Run `:checkhealth marginalia` to verify the environment (clipboard provider,
-store writability, optional integrations).
+store writability, optional integrations). Full docs: `:help marginalia`.
 
 ## Default keymaps
 

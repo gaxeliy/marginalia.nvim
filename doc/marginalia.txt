@@ -1,0 +1,171 @@
+*marginalia.txt*	Margin notes for code review in Neovim
+                                                     *marginalia.nvim*
+                                                     v0.1.0
+
+marginalia.nvim leaves comments anchored to code lines, navigates between
+them, and exports everything to the system clipboard as ready-to-paste LLM
+context.
+
+==============================================================================
+CONTENTS                                             *marginalia-contents*
+
+    1. Introduction ........................ |marginalia-introduction|
+    2. Requirements ........................ |marginalia-requirements|
+    3. Setup ............................... |marginalia-setup|
+    4. Keymaps ............................. |marginalia-keymaps|
+    5. API ................................. |marginalia-api|
+    6. Export format ....................... |marginalia-export|
+    7. Persistence ......................... |marginalia-persistence|
+    8. Health .............................. |marginalia-health|
+    9. License ............................. |marginalia-license|
+
+
+==============================================================================
+1. INTRODUCTION                                      *marginalia-introduction*
+
+Comments are extmarks: a `⚑` sign in the signcolumn and a virt_lines banner
+below the target line (the review-tool convention — a note on line 1 stays
+visible). Multi-line notes get a range marker: a muted tint under the whole
+range (`range_marker = 'tint'`, the default), `│` continuators in the
+signcolumn (`'signs'`), or both (`'both'`). The note text hangs below the
+range END (the GitHub/VSCode review-thread convention: the tinted block
+stays contiguous, the note reads after it).
+
+Add a note with `<leader>Ra` in normal mode (current line) or visual mode
+(the selection becomes a line range). Comment payloads live in a Lua table
+keyed by the extmark id, the same approach |vim.diagnostic| uses.
+
+==============================================================================
+2. REQUIREMENTS                                      *marginalia-requirements*
+
+- Neovim >= 0.10
+- Telescope is optional. When it is missing or fails to start, the quickfix
+  list is used instead. Telescope's own Neovim requirement applies (e.g.
+  telescope.nvim as of 2026 needs Neovim >= 0.11.7).
+- A clipboard provider for the `+` register (X11/Wayland: `xclip`/`wl-copy`;
+  see `:checkhealth provider`).
+
+==============================================================================
+3. SETUP                                                *marginalia-setup*
+
+>lua
+    require('marginalia').setup {
+      keymaps = {
+        add       = '<leader>Ra',
+        edit      = '<leader>Re',
+        clear     = '<leader>Rc',
+        clear_all = '<leader>RC',
+        export    = '<leader>Rx',
+        pick      = '<leader>Rp',
+        review    = '<leader>Rb',
+        toggle    = '<leader>Rt',
+        preview   = '<leader>Rv',
+        next      = ']R',
+        prev      = '[R',
+      },
+      sign_text = '⚑',
+      range_marker = 'tint',   -- 'tint' | 'signs' | 'both'
+      include_code = false,    -- export: append commented code lines
+      context_lines = 0,       -- export: +/- N context lines
+      persist = true,
+      json_path = nil,         -- default: stdpath('data')/marginalia.json
+      project_root = nil,      -- default: the directory nvim was opened in
+      preview = {
+        on_hover = false,
+        border = 'rounded',
+      },
+      telescope = {},          -- overrides for pickers.new()
+    }
+<
+
+Set any keymap to `false` to disable it. `include_code` and
+`preview.on_hover` are opt-in.
+
+PROJECT SCOPE                                    *marginalia-project-scope*
+
+The store is one global JSON keyed by absolute file path, but every "work
+on one project at a time" feature is scoped to the directory Neovim was
+opened in (`project_root`, captured at setup): export, the review buffer,
+the picker, and clear-all only see notes whose files live under that root.
+Notes from other projects stay in the store and can never be wiped by
+accident.
+
+==============================================================================
+4. KEYMAPS                                            *marginalia-keymaps*
+
+`<leader>Ra`  add note (normal = current line, visual = range)
+`<leader>Re`  edit note on the current line
+`<leader>Rc`  clear note on the current line
+`<leader>RC`  clear ALL notes in the current project
+`<leader>Rx`  export all notes to the clipboard
+`<leader>Rp`  pick notes (Telescope / quickfix)
+`<leader>Rb`  review buffer: all notes in one editable place
+`<leader>Rt`  toggle note visibility in the current buffer
+`<leader>Rv`  floating preview of the note on the current line
+`]R` / `[R`   next / previous (visible) note in the buffer
+
+Inside the review buffer: `gy` copies the (edited) review copy to the `+`
+register, `<CR>` jumps to the note under the cursor, `q` closes.
+
+==============================================================================
+5. API                                                    *marginalia-api*
+
+>lua
+    local mg = require('marginalia')
+    mg.add_comment()
+    mg.edit_comment()
+    mg.clear_current_comment()
+    mg.toggle_comments()
+    mg.preview_comment()
+    mg.next_comment() / mg.prev_comment()
+    mg.pick_comments()
+    mg.export_to_clipboard()
+    mg.delete_comment(comment)   -- object from get_all_comments()
+    mg.get_all_comments()        -- current project only
+    mg.clear_project_comments()  -- wipe every note under project_root
+    mg.flush_store()             -- synchronous store write
+<
+
+`get_all_comments()` returns a list sorted by path, then line:
+`{ abspath, relpath, line, end_line, text, uid, bufnr? }`.
+
+==============================================================================
+6. EXPORT FORMAT                                    *marginalia-export*
+
+>text
+    lua/custom/plugins/diffview.lua:19 diffview_close should use a command
+    lua/custom/plugins/diffview.lua:20-25 this block duplicates the config
+<
+
+With `include_code = true` each entry also gets the commented lines
+(prefixed `  > `); with `context_lines = N` also +/- N context lines
+(prefixed `  ~ `).
+
+==============================================================================
+7. PERSISTENCE                                  *marginalia-persistence*
+
+- File: `stdpath('data')/marginalia.json`, format
+  `{"version":1,"files":{...}}`.
+- Writes are crash-safe: the new content is written to a `tmp` file, the
+  previous content is copied to `.bak`, then the `tmp` file is renamed over
+  the store.
+- Foreign/corrupt stores are ignored: the plugin loads an empty store and
+  never crashes; unreadable bytes are preserved as `<path>.unreadable`.
+- Comments follow code edits: the anchor is the line number plus the
+  anchor line's text, searched within +/- 25 lines.
+- Two concurrent Neovim instances both writing the store: last write wins
+  (documented limitation).
+
+==============================================================================
+8. HEALTH                                              *marginalia-health*
+
+Run `:checkhealth marginalia` to verify the Neovim version, the setup
+state, store writability, the clipboard provider, and optional
+integrations.
+
+==============================================================================
+9. LICENSE                                            *marginalia-license*
+
+MIT. See the LICENSE file in the repository.
+
+vim:tw=78:ts=8:sw=4:sts=4:et:ft=help:norl:
